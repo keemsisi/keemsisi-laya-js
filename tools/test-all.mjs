@@ -1,13 +1,37 @@
-/* Builds, typechecks, then runs every suite. Usage: node tools/test-all.mjs */
+/*
+ * Runs everything in the repo. Usage: node tools/test-all.mjs
+ *
+ * This knows nothing about any language. Each SDK owns sdk/<language>/build.sh
+ * and each demo owns demos/<name>/test.sh; both print a final line stating a
+ * count. This discovers them, runs them, and adds up the verdicts - so adding a
+ * language means adding one script, not editing this file.
+ */
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
+import { readdirSync, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+
+/** Entry points, in the order a reader would want them reported. */
+function discover() {
+  const found = [];
+  for (const [dir, script, label] of [['sdk', 'build.sh', 'sdk'], ['demos', 'test.sh', 'demo']]) {
+    const base = path.join(root, dir);
+    if (!existsSync(base)) continue;
+    for (const name of readdirSync(base).sort()) {
+      const entry = path.join(base, name, script);
+      if (existsSync(entry) && statSync(entry).isFile()) {
+        found.push({ name: `${label}/${name}`, entry });
+      }
+    }
+  }
+  return found;
+}
+
 /**
- * A suite's verdict, not merely its last line: a build can print warnings after
- * its summary, and reporting those as the result hides whether it passed - and
- * drops its assertions from the total.
+ * A run's verdict, not merely its last line: a build can print warnings after
+ * its summary, and reporting those would hide whether it passed.
  */
 function verdict(out) {
   const lines = out.trim().split('\n').map((l) => l.trim());
@@ -17,75 +41,33 @@ function verdict(out) {
   return lines[lines.length - 1] || '';
 }
 
-const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const run = (cmd, args, label) => {
-  const r = spawnSync(cmd, args, { cwd: root, encoding: 'utf8' });
-  if (r.status !== 0) {
-    console.error('\n' + label + ' FAILED\n' + (r.stdout || '') + (r.stderr || ''));
-    process.exit(1);
-  }
-  console.log('  ok  ' + label);
-};
-
-console.log('building packages...');
-for (const p of ['core', 'server', 'react']) run('npx', ['tsc', '-p', 'sdk/typescript/' + p], '@laya-js/' + p);
-
-console.log('\ntypechecking consumers...');
-// The packages compile themselves, but only a consumer proves the emitted
-// .d.ts files are usable - and the example is bundled by esbuild, which
-// strips types without checking them.
-run('npx', ['tsc', '-p', 'sdk/typescript/conformance'], 'type surface (with @ts-expect-error assertions)');
-run('npx', ['tsc', '-p', 'demos/ticketing'], 'example app (strict)');
-
-console.log('\nbundling the example...');
-run(process.execPath, ['demos/ticketing/build.mjs'], 'esbuild bundle');
-
-const suites = [
-  ['core', 'sdk/typescript/core/test/core.test.mjs'],
-  ['core/client', 'sdk/typescript/core/test/client.test.mjs'],
-  ['server', 'sdk/typescript/server/test/server.test.mjs'],
-  ['react', 'sdk/typescript/react/test/react.test.mjs'],
-  ['app (jsdom)', 'demos/ticketing/test/app.test.mjs'],
-  // Loads the real 1.69 GB checkpoint. Skips itself, loudly, when the
-  // bundle is not already cached, so this never starts a download.
-  ['real model', 'sdk/typescript/server/test/real-model.test.mjs']
-];
-
-console.log('\nrunning suites...');
-const results = [];
-let failed = 0;
-for (const [name, file] of suites) {
-  const r = spawnSync(process.execPath, [file], { cwd: root, encoding: 'utf8' });
-  const out = (r.stdout || '') + (r.stderr || '');
-  const line = verdict(out);
-  const bad = r.status !== 0;
-  if (bad) { failed++; console.log(out); }
-  results.push({ name, line, bad });
+const targets = discover();
+if (targets.length === 0) {
+  console.error('nothing to run: no sdk/*/build.sh or demos/*/test.sh found');
+  process.exit(1);
 }
 
-// Each non-JavaScript SDK owns its build; this runs whichever are present so the
-// repo has one entry point rather than one per language.
-const polyglot = [
-  ['java', 'sdk/java/build.sh', []]
-];
-for (const [name, script, args] of polyglot) {
-  if (!existsSync(path.join(root, script))) continue;
-  console.log('\nrunning the ' + name + ' sdk...');
-  const r = spawnSync(path.join(root, script), args, { cwd: path.dirname(path.join(root, script)), encoding: 'utf8' });
+const results = [];
+let failed = 0;
+for (const { name, entry } of targets) {
+  console.log(`\n== ${name} ==`);
+  const r = spawnSync(entry, [], { cwd: path.dirname(entry), encoding: 'utf8' });
   const out = (r.stdout || '') + (r.stderr || '');
-  const line = verdict(out);
+  process.stdout.write(out.split('\n').filter((l) => /^\s{2}(ok|FAIL|skip)/.test(l)).join('\n') + '\n');
   const bad = r.status !== 0;
-  if (bad) { failed++; console.log(out); }
-  results.push({ name: 'sdk/' + name, line, bad });
+  if (bad) {
+    failed++;
+    console.log(out);
+  }
+  results.push({ name, line: verdict(out), bad });
 }
 
 console.log('\n================ summary ================');
 let total = 0;
 for (const r of results) {
-  const label = r.line.startsWith('SKIPPED') || /is not cached/.test(r.line) ? 'skip' : r.bad ? 'FAIL' : 'ok  ';
-  console.log('  ' + label + '  ' + r.name.padEnd(13) + r.line);
-  const m = r.line.match(/(\d+) passed/);
+  console.log('  ' + (r.bad ? 'FAIL' : 'ok  ') + '  ' + r.name.padEnd(16) + r.line);
+  const m = r.line.match(/(\d+) passed/) || r.line.match(/(\d+) assertions/);
   if (m) total += Number(m[1]);
 }
-console.log('  ' + total + ' assertions across ' + suites.length + ' suites, plus 2 typechecks');
+console.log('  ' + total + ' assertions across ' + results.length + ' components');
 process.exit(failed ? 1 : 0);
