@@ -231,6 +231,29 @@ the **negative** cases with `@ts-expect-error` — tsc fails on an unused direct
 type that stops rejecting bad usage breaks the build. The example app is typechecked
 separately under `strict`, because esbuild strips types without checking them.
 
+### The hook's lifecycle
+
+`useDecision` is a small state machine, and the transitions are what make it safe to call
+on every render:
+
+```mermaid
+stateDiagram-v2
+  [*] --> idle
+  idle --> loading: enabled and input key changes
+  loading --> success: answer for the current requestId
+  loading --> error: typed error code
+  loading --> idle: cancel() or enabled turns false
+  loading --> loading: input changes again<br/>(previous request aborted)
+  success --> loading: input key changes, or refresh()
+  error --> loading: input key changes, or refresh()
+  success --> idle: enabled turns false
+  error --> idle: enabled turns false
+  note right of loading
+    An answer whose requestId is stale
+    is dropped, never rendered.
+  end note
+```
+
 ## What these packages get right
 
 Laya returns **calibrated** probabilities, which is the whole point of using it — so the
@@ -245,6 +268,22 @@ packages are built around not throwing that away.
   last answer, so an injected stub cannot inherit a hardcoded name; `modelSource` says
   what was configured (`receptron/laya-onnx@main (unpinned)`, a local dir, or
   `injected (custom load)`) and is known before the first answer.
+```mermaid
+flowchart TD
+  RAW["raw answer from Laya"] --> TY{"question type"}
+  TY -- choice --> RC["readChoice(): value, probability, certainty"]
+  TY -- score --> RS["readScore(): expected level + rubric label"]
+  TY -- noul --> RN["readNoul(): P(true)"]
+  RC --> OK{"option was actually offered?"}
+  OK -- no --> FB["fallback = true, probability = 0"]
+  OK -- yes --> GA{"probability >= floor?"}
+  RN --> GA
+  GA -- yes --> ACT["act on it"]
+  GA -- no --> ESC["escalate: use your own default, or ask a human"]
+  FB --> ESC
+  RS --> SHOW["display the level; scores are not gated"]
+```
+
 - **A fallback never borrows confidence.** If the model names an option that wasn't
   offered, the reading falls back and reports probability `0`, never the fallback
   option's number from the distribution.
@@ -262,6 +301,24 @@ packages are built around not throwing that away.
 - **Superseded answers are dropped.** `useDecision` aborts the previous request on input
   change and ignores out-of-order responses, so a slow answer can never overwrite a
   newer one. Verified under `StrictMode` and after unmount.
+```mermaid
+flowchart LR
+  subgraph U["untrusted: the browser"]
+    A["state (the user's data)"]
+    B["preset name, e.g. 'triage'"]
+    C["ad-hoc questions"]
+  end
+  subgraph T["trusted: your server"]
+    P["registered presets"]
+    V["validateQuestions()"]
+    M["the model"]
+  end
+  A --> V
+  B --> P --> M
+  C -. "rejected with 403 unless allowAdHoc" .-> V
+  V --> M
+```
+
 - **Ad-hoc questions are off by default.** An open prompt endpoint lets a browser make
   your model answer anything. Presets keep question construction server-side;
   `allowAdHoc: true` is a deliberate opt-in.
