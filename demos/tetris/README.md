@@ -7,7 +7,7 @@ decision model from Convai Innovations.
 ```
 npm test                                   # 297 assertions, no model needed
 node server/server.mjs                     # game on :8787 (engine: fallback)
-cd server && npm install                   # ~290 MB of onnxruntime binaries
+npm install                                # at the repo root: ~290 MB of onnxruntime binaries
 LAYA=1 LAYA_REVISION=<sha> node server/server.mjs   # the real model (1.69 GB of weights)
 ```
 

@@ -107,7 +107,7 @@ async function loadLaya() {
         engine.state = 'fallback';
         engine.reason = 'model unavailable: ' + msg.error;
         console.error('[laya] ' + engine.reason);
-        console.error('[laya] falling back to deterministic rules. Install with: cd server && npm install');
+        console.error('[laya] falling back to deterministic rules. Install with: npm install (at the repo root)');
         return resolve();
       }
       if (msg.type === 'result' || msg.type === 'error') {

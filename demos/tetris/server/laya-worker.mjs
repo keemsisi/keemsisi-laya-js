@@ -8,16 +8,17 @@
  * is what makes queueing, shedding and abandonment detection work at all.
  */
 import { parentPort } from 'node:worker_threads';
+import { loadReceptronLaya } from '@laya-js/server';
 
 let laya = null;
 
 parentPort.on('message', async function (msg) {
   if (msg.type === 'load') {
     try {
-      const mod = await import('@receptron/laya');
-      const Laya = mod.Laya;
-      if (!Laya || typeof Laya.load !== 'function') throw new Error('@receptron/laya did not export Laya.load()');
-      laya = await Laya.load({
+      // The loader is @laya-js/server's: it owns the dynamic import, the
+      // export check and the "you have not installed it" message, which
+      // this file used to carry its own copy of.
+      laya = await loadReceptronLaya({
         modelDir: msg.modelDir || undefined,
         cacheDir: msg.cacheDir || undefined,
         revision: msg.revision || undefined,

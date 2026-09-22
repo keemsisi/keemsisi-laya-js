@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node server/server.mjs",
     "start:laya": "LAYA=1 node server/server.mjs",
-    "install:laya": "cd server && npm install",
     "test": "node tests/all.js"
   },
   "engines": {
