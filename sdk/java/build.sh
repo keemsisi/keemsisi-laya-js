@@ -72,11 +72,11 @@ fi
 if [ -n "$MODEL" ] && [ -f "$MODEL/laya.onnx" ]; then
   echo "running conformance against $MODEL"
   java --enable-native-access=ALL-UNNAMED \
-    -Dai.djl.offline=true -Dorg.slf4j.simpleLogger.defaultLogLevel=warn -Xmx4g \
+    -Dai.djl.offline=true -Dorg.slf4j.simpleLogger.defaultLogLevel=error -Xmx4g \
     -cp "lib/*:target/classes" dev.laya.core.Conformance "$CONF" "$MODEL"
 else
   echo "no checkpoint found under $CACHE (set LAYA_MODEL_DIR to point at one)"
   echo "running only the vectors that do not need it"
-  java -Dorg.slf4j.simpleLogger.defaultLogLevel=warn \
+  java -Dorg.slf4j.simpleLogger.defaultLogLevel=error \
     -cp "lib/*:target/classes" dev.laya.core.Conformance "$CONF"
 fi
