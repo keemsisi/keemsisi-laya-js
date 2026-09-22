@@ -133,6 +133,19 @@ sequenceDiagram
   H->>R: readings + gates for B only
 ```
 
+## Demos
+
+Two applications driving the same engine, both run by `npm test`:
+
+| demo | what it shows |
+|---|---|
+| `demos/ticketing` | the React path: `<LayaProvider>`, `useDecision`, and the distribution rendered rather than just the winner |
+| `demos/tetris` | a decision engine in a loop: a deterministic search shortlists four moves, the model picks one, and the UI shows its probabilities, the confidence gate and the fallback tally |
+
+Tetris is the more instructive of the two, because it shows the model doing something it
+is *not* good at - it plays worse than the search alone - while still being a genuine,
+inspectable decision engine.
+
 ## Installing
 
 Not on npm yet. Three ways to consume it today, all verified from a clean project:

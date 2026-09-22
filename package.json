@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "examples/*"
+    "sdk/typescript/*",
+    "demos/*"
   ],
   "engines": {
     "node": ">=20"
@@ -25,10 +25,10 @@
   },
   "scripts": {
     "build": "npm run build -w @laya-js/core && npm run build -w @laya-js/server && npm run build -w @laya-js/react",
-    "test": "node scripts/test-all.mjs",
+    "test": "node tools/test-all.mjs",
     "example": "node examples/ticket-triage/server.mjs",
     "test:real": "node packages/server/test/real-model.test.mjs",
-    "verify:weights": "node scripts/verify-weights.mjs",
+    "verify:weights": "node tools/verify-weights.mjs",
     "pack:all": "npm run build && mkdir -p dist-packages && npm pack -w @laya-js/core -w @laya-js/react -w @laya-js/server --pack-destination dist-packages",
     "publish:all": "npm publish -w @laya-js/core -w @laya-js/react -w @laya-js/server"
   }
