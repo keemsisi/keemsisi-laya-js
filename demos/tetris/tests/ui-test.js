@@ -42,8 +42,74 @@ console.log('\n== the markup and the glue agree ==');
   const order = (html.match(/<script src="([^"]+)"/g) || []).map(function (s) {
     return s.match(/src="([^"]+)"/)[1];
   });
-  ok('game.js, bot.js then laya-client.js, in that order',
-     order.join(',') === 'game.js,bot.js,laya-client.js', order.join(','));
+  ok('game.js loads first', order[0] === 'game.js', order[0]);
+  ok('laya-client.js loads last', order[order.length - 1] === 'laya-client.js', order[order.length - 1]);
+
+  // bot/ is split by responsibility and loaded as classic scripts, so every
+  // part must be on the page and must come before the composition root that
+  // wires them. Checked against the directory rather than a fixed list, so a
+  // new module cannot be added without the page learning about it.
+  const parts = fs.readdirSync(path.join(root, 'bot')).filter(function (f) { return f.endsWith('.js'); }).sort();
+  const listed = order.filter(function (s) { return s.indexOf('bot/') === 0; })
+                      .map(function (s) { return s.slice(4); }).sort();
+  ok('every module in bot/ is on the page (' + parts.length + ')',
+     parts.join(',') === listed.join(','), 'on disk: ' + parts.join(',') + ' | on page: ' + listed.join(','));
+  const rootIdx = order.indexOf('bot.js');
+  const lastPart = order.reduce(function (acc, s, i) { return s.indexOf('bot/') === 0 ? i : acc; }, -1);
+  ok('bot/ parts load before bot.js', rootIdx > lastPart && lastPart >= 0, 'bot.js at ' + rootIdx + ', last part at ' + lastPart);
+
+  // Every src must resolve: a typo would fail silently in the browser.
+  const broken = order.filter(function (s) { return !fs.existsSync(path.join(root, s)); });
+  ok('every script src exists on disk', broken.length === 0, broken.join(','));
+}
+
+/* ------------------------------------------------------------------ *
+ * bot/ resolves its dependencies two ways: require() in Node, and a
+ * window global in the browser. Every other test takes the Node path,
+ * so the browser one is loaded here the way the page loads it - in
+ * order, into one shared scope, with no module or require in sight.
+ * ------------------------------------------------------------------ */
+console.log('\n== bot/ loads as plain browser scripts ==');
+{
+  const vm = require('node:vm');
+  const win = {};
+  const ctx = vm.createContext({ window: win, console: { log: function () {} } });
+  ctx.globalThis = ctx;
+
+  // Recomputed here rather than shared: this block must mirror the page.
+  const scripts = (html.match(/<script src="([^"]+)"/g) || [])
+    .map(function (s) { return s.match(/src="([^"]+)"/)[1]; })
+    .filter(function (s) { return s.indexOf('bot') === 0; });
+
+  let threw = null;
+  try {
+    scripts.forEach(function (f) {
+      vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), ctx, { filename: f });
+    });
+  } catch (e) { threw = e; }
+  ok('the page lists every bot script (' + scripts.length + ')', scripts.length >= 2, String(scripts.length));
+  ok('every bot script evaluates with no module system', threw === null, threw && threw.message);
+  ok('nothing leaked a require() call into the browser path', !/\brequire\b/.test(String(threw)));
+
+  const parts = fs.readdirSync(path.join(root, 'bot')).filter(function (f) { return f.endsWith('.js'); })
+                  .map(function (f) { return f.replace(/\.js$/, ''); }).sort();
+  ok('each module registered itself on window.TetrisBot',
+     win.TetrisBot && Object.keys(win.TetrisBot).sort().join(',') === parts.join(','),
+     win.TetrisBot ? Object.keys(win.TetrisBot).sort().join(',') : 'no TetrisBot');
+  ok('the composition root published the same surface as in Node',
+     win.TetrisBotCore && Object.keys(win.TetrisBotCore).sort().join(',') === 'KEYS,PROFILES,STRATEGIES,createBot,makeCore',
+     win.TetrisBotCore ? Object.keys(win.TetrisBotCore).sort().join(',') : 'no TetrisBotCore');
+
+  // Wire it to a real game module and make it plan, so the browser path is
+  // shown to compose - not merely to parse.
+  const env2 = loadGame();
+  const wired = win.TetrisBotCore.createBot(env2.T, {});
+  env2.T.start ? env2.T.start() : null;
+  const r = wired.replan();
+  ok('a bot built from the browser globals can rank placements',
+     !!r && wired.candidates.length > 0, r ? String(wired.candidates.length) : 'no plan');
+  ok('and can build a snapshot for the sidecar',
+     !!r && wired.snapshot(wired.candidates, r.before).candidates.length === wired.candidates.length);
   ok('no type="module" (the page must work from file:// too)', !/<script[^>]+type="module"/.test(html));
   ok('the engine panel is in the markup', /class="card engine"/.test(html));
   ok('the mode buttons carry their modes',
@@ -69,6 +135,43 @@ function startServer() {
 (async function () {
   const srv = await startServer();
   try {
+    /* ---------------------------------------------------------------- *
+     * The page is only as good as what the server hands back. Splitting
+     * bot/ into a subdirectory is exactly the change that can leave the
+     * suite green while every script 404s in a real browser, so fetch
+     * each one from the live server rather than trusting the filesystem.
+     * ---------------------------------------------------------------- */
+    console.log('\n== the server serves every asset the page asks for ==');
+    {
+      const base = 'http://127.0.0.1:' + srv.port;
+      const srcs = (html.match(/<script src="([^"]+)"/g) || [])
+        .map(function (s) { return s.match(/src="([^"]+)"/)[1]; });
+
+      const page = await fetch(base + '/');
+      ok('GET / returns the page', page.status === 200, String(page.status));
+      ok('it is served as html', (page.headers.get('content-type') || '').includes('text/html'));
+
+      const bad = [];
+      for (const src of srcs) {
+        const r = await fetch(base + '/' + src);
+        const body = await r.text();
+        const type = r.headers.get('content-type') || '';
+        if (r.status !== 200 || body.length === 0 || !type.includes('javascript')) {
+          bad.push(src + ' (' + r.status + ', ' + body.length + 'b, ' + type + ')');
+        }
+      }
+      ok('every script src is served as non-empty javascript (' + srcs.length + ')',
+         bad.length === 0, bad.join('; '));
+
+      // Subdirectories must work without opening a way out of the demo.
+      const esc = await fetch(base + '/../../package.json');
+      const escBody = esc.status === 200 ? await esc.text() : '';
+      ok('a traversal cannot read outside the demo',
+         !escBody.includes('"name": "laya-js"'), escBody.slice(0, 60));
+      const abs = await fetch(base + '/../../../../../../etc/hosts');
+      ok('nor anything off the repo entirely', abs.status !== 200 || !(await abs.text()).includes('localhost'));
+    }
+
     console.log('\n== the glue runs ==');
     const env = loadGame();
 
