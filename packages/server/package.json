@@ -1,0 +1,16 @@
+{
+  "name": "@laya-js/server",
+  "version": "0.1.0",
+  "description": "Node adapter that serves a Laya decision endpoint for @laya-js/react",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist", "README.md"],
+  "scripts": { "build": "tsc -p .", "clean": "rm -rf dist" },
+  "dependencies": { "@laya-js/core": "0.1.0" },
+  "optionalDependencies": { "@receptron/laya": "^0.1.2" },
+  "peerDependenciesMeta": { "@receptron/laya": { "optional": true } },
+  "engines": { "node": ">=20" }
+}
