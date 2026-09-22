@@ -133,6 +133,34 @@ sequenceDiagram
   H->>R: readings + gates for B only
 ```
 
+## Installing
+
+Not on npm yet. Three ways to consume it today, all verified from a clean project:
+
+```sh
+# 1. from the packed tarballs (attach these to a GitHub release)
+npm run pack:all                      # writes dist-packages/*.tgz
+npm i ./dist-packages/laya-js-core-0.1.0.tgz ./dist-packages/laya-js-react-0.1.0.tgz
+
+# 2. from a checkout, for local development
+npm i /path/to/keemsisi-laya-js/packages/core /path/to/keemsisi-laya-js/packages/react
+
+# 3. once published
+npm i @laya-js/core @laya-js/react     # in the browser app
+npm i @laya-js/server                  # on your Node server
+```
+
+Each package ships `dist/`, its `.d.ts` files, a README and a LICENSE — 19 KB, 11 KB and
+11 KB packed. A fresh consumer project resolves the types under `strict` +
+`moduleResolution: nodenext`, so `readings.department.value` is a `string` with no
+narrowing at the call site.
+
+**These are ES modules** (`"type": "module"`). Bundlers and Node 20+ `import` work
+directly; `require()` does not. Dual CJS output is a small build change if you need it.
+
+**Publishing:** `npm run publish:all` publishes all three. Note the `@laya-js` scope is
+currently unclaimed on npm — see the note at the end of this README before taking it.
+
 ## Quick start
 
 **1. Serve a decision endpoint.** Questions live here, not in the browser:
@@ -413,6 +441,14 @@ It also confirms the properties the design leans on: answers match the published
 probabilities form a distribution summing to 1, the chosen option is the argmax, and
 inference is **deterministic** — the same input returns byte-identical output, because
 Laya is non-autoregressive and does not sample.
+
+## A note on the package name
+
+The `@laya-js` scope is unclaimed on npm. It is worth pausing before taking it: these are
+a **third-party client** for someone else's model, and a scope that reads like
+`@laya-js/*` can easily be mistaken for an official SDK from Convai Innovations, who
+publish Laya itself. A scope you clearly own — `@keemsisi/laya-react` and friends — makes
+the relationship honest and costs nothing but a rename.
 
 ## Limitations
 - **Laya is not fast.** About 1s per call on a CPU for a typical prompt, and cost scales
