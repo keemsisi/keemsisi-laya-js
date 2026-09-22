@@ -1,0 +1,47 @@
+{
+  "name": "@laya-js/core",
+  "version": "0.1.0",
+  "description": "Isomorphic types, question builders, answer readers and context budgeting for the Laya decision model. Zero dependencies.",
+  "keywords": [
+    "laya",
+    "decision-model",
+    "classification",
+    "typescript",
+    "isomorphic",
+    "onnx"
+  ],
+  "license": "MIT",
+  "author": "Adeshina Lasisi",
+  "homepage": "https://github.com/keemsisi/keemsisi-laya-js#readme",
+  "bugs": {
+    "url": "https://github.com/keemsisi/keemsisi-laya-js/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keemsisi/keemsisi-laya-js.git",
+    "directory": "packages/core"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p .",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
