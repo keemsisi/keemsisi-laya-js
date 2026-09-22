@@ -13,7 +13,7 @@
  *
  *   node packages/server/test/real-model.test.mjs
  */
-import { ok, eq, near, section, summary } from '../../../../tools/harness.mjs';
+import { ok, eq, near, section, summary } from '../../test-harness.mjs';
 import { createLayaServer } from '../dist/index.js';
 import { choice, score, noul, readAll, optionsOf } from '@laya-js/core';
 import path from 'node:path';

@@ -1,13 +1,15 @@
 # tools
 
-Repo-wide development tooling. **All Node**, because that is what the repo's own test
-runner and the reference implementation use — none of it is a dependency of any SDK.
+Repo-wide tooling that belongs to no single SDK. Anything tied to one language lives
+inside that language's SDK instead — the JavaScript assertion harness, for example, is
+`sdk/typescript/test-harness.mjs`, because only JavaScript suites can import it.
 
-| file | scope |
+| file | why it is here and not in an SDK |
 |---|---|
-| `test-all.mjs` | builds, typechecks and runs every JavaScript suite plus the demos' own runners. Each non-JS SDK owns its build: `sdk/java/build.sh` |
-| `verify-weights.mjs` | hashes a downloaded checkpoint against the digests Hugging Face publishes for a pinned revision. The concern is language-neutral — every SDK loads the same bundle — but the implementation is Node |
-| `harness.mjs` | the assertion harness the JavaScript suites share. JavaScript only: `sdk/java` uses its own, since a Java port cannot import this one |
+| `test-all.mjs` | one entry point for the whole repo: it builds and runs the JavaScript suites, the demos' own runners, and every other SDK's build script that is present (`sdk/java/build.sh` today). It orchestrates languages, so it belongs to none |
+| `verify-weights.mjs` | hashes a downloaded checkpoint against the digests Hugging Face publishes for a pinned revision. Every SDK loads that same bundle, so the concern is shared |
 
-If you are adding an SDK, nothing here is required. Add your own build and test entry
-point under `sdk/<language>/`, and have it read `protocol/conformance/`.
+Both are written in Node, which is an implementation detail rather than ownership: a Java
+or Go user runs `verify-weights.mjs` against the same bundle their SDK will load. If that
+becomes a burden, the honest fix is to port it per language — not to move a shared
+concern inside one SDK.

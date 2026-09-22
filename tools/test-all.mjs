@@ -1,6 +1,7 @@
 /* Builds, typechecks, then runs every suite. Usage: node tools/test-all.mjs */
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -47,6 +48,22 @@ for (const [name, file] of suites) {
   const bad = r.status !== 0;
   if (bad) { failed++; console.log(out); }
   results.push({ name, line, bad });
+}
+
+// Each non-JavaScript SDK owns its build; this runs whichever are present so the
+// repo has one entry point rather than one per language.
+const polyglot = [
+  ['java', 'sdk/java/build.sh', []]
+];
+for (const [name, script, args] of polyglot) {
+  if (!existsSync(path.join(root, script))) continue;
+  console.log('\nrunning the ' + name + ' sdk...');
+  const r = spawnSync(path.join(root, script), args, { cwd: path.dirname(path.join(root, script)), encoding: 'utf8' });
+  const out = (r.stdout || '') + (r.stderr || '');
+  const line = (out.trim().split('\n').pop() || '').trim();
+  const bad = r.status !== 0;
+  if (bad) { failed++; console.log(out); }
+  results.push({ name: 'sdk/' + name, line, bad });
 }
 
 console.log('\n================ summary ================');
