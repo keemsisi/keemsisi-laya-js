@@ -3,11 +3,17 @@ dist/
 *.tsbuildinfo
 
 # built bundles — reproducible with `node build.mjs`
-examples/*/public/app.js
-examples/*/public/app.js.map
+demos/*/public/app.js
+demos/*/public/app.js.map
 
 *.log
 .DS_Store
 .env
 .env.*
 dist-packages/
+
+# java: jars fetched locally because this machine's java cannot reach Maven
+# Central (see sdk/java/README.md); Maven resolves them normally from pom.xml
+sdk/java/lib/
+**/target/
+*.class
