@@ -1,4 +1,4 @@
-import { ok, eq, section, summary } from '../../../../scripts/harness.mjs';
+import { ok, eq, section, summary } from '../../../../tools/harness.mjs';
 import { createLayaServer } from '../dist/index.js';
 import { choice, score, noul, optionsOf } from '@laya-js/core';
 import http from 'node:http';

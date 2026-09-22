@@ -1,4 +1,4 @@
-/* Builds, typechecks, then runs every suite. Usage: node scripts/test-all.mjs */
+/* Builds, typechecks, then runs every suite. Usage: node tools/test-all.mjs */
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -20,7 +20,7 @@ console.log('\ntypechecking consumers...');
 // The packages compile themselves, but only a consumer proves the emitted
 // .d.ts files are usable - and the example is bundled by esbuild, which
 // strips types without checking them.
-run('npx', ['tsc', '-p', 'protocol/conformance/typescript-types'], 'type surface (with @ts-expect-error assertions)');
+run('npx', ['tsc', '-p', 'sdk/typescript/conformance'], 'type surface (with @ts-expect-error assertions)');
 run('npx', ['tsc', '-p', 'demos/ticketing'], 'example app (strict)');
 
 console.log('\nbundling the example...');

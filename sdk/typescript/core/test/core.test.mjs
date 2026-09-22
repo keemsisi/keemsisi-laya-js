@@ -1,4 +1,4 @@
-import { ok, eq, near, section, summary } from '../../../../scripts/harness.mjs';
+import { ok, eq, near, section, summary } from '../../../../tools/harness.mjs';
 import * as L from '../dist/index.js';
 
 section('question builders');

@@ -1,4 +1,4 @@
-import { ok, eq, section, summary } from '../../../../scripts/harness.mjs';
+import { ok, eq, section, summary } from '../../../../tools/harness.mjs';
 import { createClient, choice, score } from '../dist/index.js';
 
 const questions = { dept: choice('Which team?', { billing: 'refunds', support: 'bugs' }) };
