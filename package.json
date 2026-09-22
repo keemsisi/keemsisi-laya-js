@@ -1,0 +1,33 @@
+{
+  "name": "laya-js",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@receptron/laya": "^0.1.2",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "esbuild": "^0.28.2",
+    "jsdom": "^25.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43"
+  },
+  "scripts": {
+    "build": "npm run build -w @laya-js/core && npm run build -w @laya-js/server && npm run build -w @laya-js/react",
+    "test": "node scripts/test-all.mjs",
+    "example": "node examples/ticket-triage/server.mjs",
+    "test:real": "node packages/server/test/real-model.test.mjs",
+    "verify:weights": "node scripts/verify-weights.mjs"
+  }
+}
