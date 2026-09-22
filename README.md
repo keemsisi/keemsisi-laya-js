@@ -60,19 +60,58 @@ constraint on the prompt — see *Prompt budget* below.
 
 The engine is deliberately split at the line Laya's strengths fall on:
 
+```mermaid
+flowchart LR
+  subgraph BR["browser"]
+    G["game.js: rules, gravity, SRS, scoring"]
+    B1["bot.js: placements() - rotate, slide, drop"]
+    B2["bot.js: evaluate() - Dellacherie + 1-piece lookahead"]
+    B3["bot.js: shortlist(4) + describe()"]
+    LC["laya-client.js"]
+    B4["bot.js: executor"]
+  end
+  subgraph SC["node sidecar"]
+    D["decide.mjs: state + typed questions"]
+    W["laya-worker.mjs: the model, on its own thread"]
+  end
+  G --> B1 --> B2 --> B3 --> LC
+  LC -- "POST /decide" --> D
+  D --> W
+  W -- "answers + probabilities" --> D
+  D -- "strategy / risk / move" --> LC
+  LC --> B4
+  B4 -- "rotate, move, hardDrop" --> G
+  B2 -. "the chosen strategy changes these weights" .- D
 ```
-             ┌──────────────── browser ────────────────┐   ┌─── node sidecar ───┐
-  game.js    │  rules, gravity, SRS rotation, scoring  │   │                    │
-  bot.js     │  enumerate every legal placement        │   │                    │
-             │  score each with a weighted evaluation  │   │                    │
-             │  shortlist 4 and describe them in words │   │                    │
- laya-client │  ────────── POST /decide ───────────────┼──▶│  decide.mjs builds │
-             │                                         │   │  state + questions │
-             │                                         │   │  Laya answers them │
-             │  ◀──────── typed decision ──────────────┼───│  in one pass       │
-  bot.js     │  execute the chosen placement           │   │                    │
-             └─────────────────────────────────────────┘   └────────────────────┘
+
+### What happens on every piece
+
+```mermaid
+flowchart TD
+  SP["piece spawns (hooks.piece)"] --> RP["replan(): enumerate, evaluate, shortlist 4"]
+  RP --> PV["provisional plan = the ranked best"]
+  PV --> IF{"a request already in flight?"}
+  IF -- yes --> SK["skip asking, play the ranked plan"]
+  IF -- no --> CAD{"strategyAge >= 6 pieces?"}
+  CAD -- yes --> QS["ask: strategy + risk (~2.6s)"]
+  CAD -- no --> QM["ask: move (~0.55s)"]
+  QS --> WT["executor holds the piece, up to the deadline"]
+  QM --> WT
+  WT -- "answer arrives in time" --> AP["applyDecision()"]
+  WT -- "deadline passes" --> TO["play the ranked plan, count a timeout"]
+  AP --> GT{"chosen option's probability >= 0.34?"}
+  GT -- no --> OV["keep the ranked pick, count an override"]
+  GT -- yes --> US["plan = Laya's choice"]
+  US --> EX["executor: rotate, slide, hard drop"]
+  OV --> EX
+  SK --> EX
+  TO --> EX
+  EX --> LK["piece locks, next piece"]
+  LK --> SP
 ```
+
+A late answer is not wasted: a play style is not piece-specific, so if it arrives after
+the piece locked it is still adopted for the next one. Only a stale *move* is discarded.
 
 **The deterministic half** (`bot.js`) does what a heuristic is good at: it enumerates
 every placement reachable by *rotate at the top, slide, drop* — the same moves a player
@@ -139,6 +178,27 @@ was badly backed up, because requests could not even be parsed:
 | four parallel requests | all queue, last ~13s | 1 served, 3 shed in 4ms |
 
 Inference got faster too: the HTTP thread was competing with ONNX for CPU.
+
+```mermaid
+sequenceDiagram
+  participant BO as bot (browser)
+  participant HT as sidecar, http thread
+  participant WK as worker thread
+  participant ML as Laya on ONNX
+  BO->>HT: POST /decide
+  HT->>HT: buildPrompt + per-question budget check
+  alt a pass is already running
+    HT-->>BO: fallback, "model busy" (~4ms)
+  else model free
+    HT->>WK: postMessage(infer)
+    Note over HT: http thread stays free:<br/>/health still answers in 2-6ms
+    WK->>ML: systemOne(state, questions)
+    ML-->>WK: answers (blocks only this thread)
+    WK-->>HT: result
+    HT->>HT: caller gone? drop the answer
+    HT-->>BO: decision (ms = inference only, queue time separate)
+  end
+```
 
 Three more things keep it honest under load:
 
