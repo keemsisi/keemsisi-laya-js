@@ -250,6 +250,33 @@ function snap(over) {
        d.strategyConfidence + '/' + d.strategyCertainty);
     ok('move parsed', d.move === 'b', d.move);
     ok('move gate uses the option probability', Math.abs(d.moveConfidence - 0.71) < 1e-9, String(d.moveConfidence));
+
+    /* A model answer naming something that is not on the shortlist has to
+     * fall back to the top-ranked placement - and must report no
+     * confidence in it. The bot gates on moveConfidence, so a fallback
+     * that inherited the probability sitting under the fallback key would
+     * sail through the gate looking like a decision the model made. */
+    {
+      const off = D.normalize(
+        { answers: { move: { choice: 'not-a-key', probabilities: { a: 0.91, b: 0.09 }, confidence: 0.5 } } },
+        { candidates: [{ key: 'a' }, { key: 'b' }], strategies: D.STRATEGY_CRITERIA ? Object.keys(D.STRATEGY_CRITERIA) : ['balanced'] },
+        { engine: 'laya', ms: 1 }
+      );
+      ok('an off-list move falls back to the top candidate', off.move === 'a', String(off.move));
+      ok('and reports no confidence, so the gate fires', off.moveConfidence === 0, String(off.moveConfidence));
+      ok('while the distribution is still passed through for display',
+         off.moveProbabilities && off.moveProbabilities.a === 0.91);
+
+      // Same rule for the play style.
+      const offS = D.normalize(
+        { answers: { strategy: { choice: 'nonsense', probabilities: { balanced: 0.8 }, confidence: 0.4 } } },
+        { candidates: [{ key: 'a' }], strategies: ['balanced', 'survive'], askStrategy: true },
+        { engine: 'laya', ms: 1 }
+      );
+      ok('an off-list strategy falls back without borrowing a probability',
+         offS.strategy === 'balanced' && offS.strategyConfidence === 0,
+         offS.strategy + '/' + offS.strategyConfidence);
+    }
     ok('move distribution passed through', d.moveProbabilities.c === 0.06);
     ok('risk score kept as an expected level', Math.abs(d.risk - 1.3886) < 1e-9, String(d.risk));
     ok('risk label reads off the rubric', d.riskLabel === D.RISK_RUBRIC[1], d.riskLabel);

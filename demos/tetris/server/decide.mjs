@@ -6,7 +6,19 @@
  * with calibrated probabilities. Nothing here talks to the model; this
  * module is the pure translation layer, so it can be unit tested with
  * no 1.7 GB download.
+ *
+ * Everything here is Tetris-specific. The parts that are not - costing a
+ * prompt against the context window, and reading a typed answer back out
+ * of Laya's output - come from @laya-js/core.
  * ------------------------------------------------------------------ */
+
+import {
+  estimateTokenBreakdown,
+  estimateContextTokens as contextTokensOf,
+  readChoice,
+  readScore,
+  readNoul
+} from '@laya-js/core';
 
 // Kept terse on purpose: the English checkpoint has a 512-token context,
 // and the move options are the last thing in the prompt - if anything is
@@ -33,50 +45,18 @@ export const TOKEN_BUDGET = 440;
 /**
  * Estimate the prompt cost.
  *
- * Laya encodes the whole state once per question - each question is its own
- * sequence in the batch - so `usage.input_tokens` is the sum over questions
- * and the context limit applies to the largest single question, not the sum.
- * Measured against the real tokenizer on this checkpoint:
- *
- *   perQuestion ~= 1.2 * ( chars/4 + 3.75 * options + 12 )
- *   total       ~= sum over questions
- *
- * The 1.2 is a deliberate safety factor: the fit sat about 15% under the
- * measured totals, and under-estimating is the dangerous direction.
+ * The model is @laya-js/core's: Laya encodes the whole state once per
+ * question, so `usage.input_tokens` is the sum over questions while the
+ * context limit applies to the largest single one. Re-exported under the
+ * names this demo has always used.
  */
 export function estimateTokens(state, questions) {
-  let stateChars = 0;
-  for (const [k, v] of Object.entries(state || {})) stateChars += k.length + String(v).length;
-
-  let total = 0;
-  let max = 0;
-  const per = {};
-  for (const [key, q] of Object.entries(questions || {})) {
-    let chars = stateChars + String(q.instructions).length;
-    let options = 0;
-    const c = q.criteria;
-    if (Array.isArray(c)) {
-      options = c.length;
-      c.forEach(function (x) { chars += String(x).length; });
-    } else if (c) {
-      const keys = Object.keys(c);
-      options = keys.length;
-      for (const k of keys) chars += k.length + String(c[k]).length;
-    } else {
-      options = 2;                       // a noul scores true/false
-    }
-    const t = Math.ceil(1.2 * (chars / 4 + 3.75 * options + 12));
-    per[key] = t;
-    total += t;
-    if (t > max) max = t;
-  }
-  return { total: total, perQuestion: per, largest: max };
+  return estimateTokenBreakdown(state, questions);
 }
 
-/** Back-compatible scalar: the largest single question, which is what the
- *  context window actually constrains. */
+/** The largest single question, which is what the context window constrains. */
 export function estimateContextTokens(state, questions) {
-  return estimateTokens(state, questions).largest;
+  return contextTokensOf(state, questions);
 }
 
 /* ------------------------------- state ---------------------------- */
@@ -196,38 +176,15 @@ export function buildQuestions(snap) {
 
 /* ---------------------------- normalizing ------------------------- */
 
-function pickChoice(ans, allowed, fallback) {
-  if (!ans) return { value: fallback, probability: 0, certainty: 0, probabilities: null };
-  const probs = ans.probabilities || ans.probs || null;
-  let value = ans.choice || ans.label || ans.answer || null;
-  if (!value && probs) {
-    value = Object.keys(probs).reduce(function (a, b) { return probs[b] > probs[a] ? b : a; });
-  }
-  if (allowed && allowed.indexOf(value) === -1) value = fallback;
-  const probability = probs && typeof probs[value] === 'number' ? probs[value]
-    : (typeof ans.confidence === 'number' ? ans.confidence : 0);
-  const certainty = typeof ans.confidence === 'number' ? ans.confidence : probability;
-  return { value: value, probability: probability, certainty: certainty, probabilities: probs };
-}
-
-function pickScore(ans, fallback) {
-  if (!ans) return fallback;
-  if (typeof ans.score === 'number') return ans.score;
-  if (typeof ans.expected === 'number') return ans.expected;
-  if (typeof ans.value === 'number') return ans.value;
-  return fallback;
-}
-
-function pickNoul(ans) {
-  if (!ans) return 0;
-  if (typeof ans.noul === 'number') return ans.noul;
-  if (typeof ans.probability === 'number') return ans.probability;
-  if (typeof ans.yes === 'number') return ans.yes;
-  if (typeof ans.noul === 'boolean') return ans.noul ? 1 : 0;
-  if (typeof ans.answer === 'boolean') return ans.answer ? 1 : 0;
-  if (typeof ans.confidence === 'number' && (ans.choice === 'yes' || ans.answer === 'yes')) return ans.confidence;
-  return 0;
-}
+/*
+ * The readers come from @laya-js/core. They are not just shorter than the
+ * three this file used to carry - they are stricter in the one place it
+ * matters: a reading that fell back to a default reports probability 0
+ * rather than inheriting the probability of whatever option happened to
+ * sit under that key. The bot gates moves on that number, so the old copy
+ * could let a fallback through the confidence gate looking like a
+ * high-confidence decision from the model.
+ */
 
 export function normalize(raw, snap, meta) {
   const a = (raw && raw.answers) || {};
@@ -241,16 +198,16 @@ export function normalize(raw, snap, meta) {
   const riskAsked = asked.indexOf('risk') !== -1;
   const moveAsked = asked.indexOf('move') !== -1;
 
-  const strat = pickChoice(a.strategy, strategies, 'balanced');
-  const move = pickChoice(a.move, keys, keys[0] || 'a');
-  const risk = pickScore(a.risk, 0);
+  const strat = readChoice(a.strategy, { allowed: strategies, fallback: 'balanced' });
+  const move = readChoice(a.move, { allowed: keys, fallback: keys[0] || 'a' });
+  const risk = readScore(a.risk, { levels: RISK_RUBRIC, fallback: 0 });
 
   // Whether to swap the held piece is carried by the chosen placement
   // itself, not by a separate question that could disagree with it.
   const chosen = (snap.candidates || []).find(function (c) {
     return c.key === (keys.length > 1 ? move.value : keys[0]);
   });
-  const holdP = a.use_hold ? pickNoul(a.use_hold) : (chosen && chosen.useHold ? 1 : 0);
+  const holdP = a.use_hold ? readNoul(a.use_hold).probability : (chosen && chosen.useHold ? 1 : 0);
 
   return {
     engine: (meta && meta.engine) || 'laya',
@@ -261,8 +218,9 @@ export function normalize(raw, snap, meta) {
     strategyConfidence: strategyAsked ? strat.probability : null,
     strategyCertainty: strategyAsked ? strat.certainty : null,
     strategyProbabilities: strategyAsked ? strat.probabilities : null,
-    risk: riskAsked ? risk : null,
-    riskLabel: riskAsked ? RISK_RUBRIC[Math.min(RISK_RUBRIC.length - 1, Math.max(0, Math.round(risk)))] : null,
+    risk: riskAsked ? risk.value : null,
+    // readScore clamps the level into the rubric and carries the label with it.
+    riskLabel: riskAsked ? risk.label : null,
     riskProbabilities: riskAsked ? (a.risk && a.risk.probabilities) || null : null,
     // null when the move was not asked on this call - the caller keeps the
     // placement it already ranked.
