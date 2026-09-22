@@ -110,6 +110,29 @@ flowchart TD
   LK --> SP
 ```
 
+The executor is deliberately a state machine recomputed each tick rather than a recorded
+script, because gravity and rotation kicks move the piece underneath it:
+
+```mermaid
+stateDiagram-v2
+  [*] --> needsHold
+  needsHold --> holding: plan.useHold and a swap is available
+  holding --> [*]: holdPiece() spawns the swap, replanning starts over
+  needsHold --> rotating: no swap needed
+  rotating --> rotating: r != target, rotate() succeeded
+  rotating --> nudging: rotate() blocked
+  nudging --> rotating: moved sideways, try again
+  nudging --> dropping: boxed in, commit where we are
+  rotating --> sliding: r == target
+  sliding --> sliding: x != target, move() succeeded
+  sliding --> dropping: x == target, or the path closed
+  dropping --> [*]: hardDrop(), piece locks
+  note right of sliding
+    Budget of 28 steps; past that
+    it drops rather than loop.
+  end note
+```
+
 A late answer is not wasted: a play style is not piece-specific, so if it arrives after
 the piece locked it is still adopted for the next one. Only a stale *move* is discarded.
 
@@ -119,6 +142,23 @@ has — and scores the resulting board with Dellacherie's evaluation function (l
 height, eroded piece cells, row/column transitions, holes, cumulative wells), plus a
 one-piece lookahead. A test drives 220 random positions and asserts that every
 placement the planner proposes lands **exactly** where it said it would.
+
+```mermaid
+flowchart TD
+  SP["piece at spawn"] --> R{"rotate 0-3 times"}
+  R --> K["rotatedPiece(): SRS kicks, same code the executor uses"]
+  K --> DUP{"this shape seen before?"}
+  DUP -- yes --> SKIP["skip: O repeats, I/S/Z repeat"]
+  DUP -- no --> SL["slide left and right until blocked"]
+  SL --> DR["drop each column to its landing row"]
+  DR --> LAND{"landing cells seen before?"}
+  LAND -- yes --> SKIP2["skip: r0 and r2 can land identically"]
+  LAND -- no --> AP["applyPlacement(): clear rows, count eroded cells"]
+  AP --> EV["evaluate(): landing height, transitions, holes, wells"]
+  EV --> LA["lookahead: best reply with the next piece"]
+  LA --> SH["shortlist 4 that differ materially"]
+  SH --> DE["describe() each in one line for the model"]
+```
 
 **Laya's half** is the judgement:
 
@@ -209,6 +249,21 @@ Three more things keep it honest under load:
   pass is skipped instead of holding the model for nobody. The transport timeout is a
   20s safety net - at 2.5s it used to abort every play-style call mid-flight while the
   server carried on computing, which is what made the backlog cascade.
+```mermaid
+stateDiagram-v2
+  [*] --> cold: server starts
+  cold --> resident: model loaded (~13s)
+  resident --> resident: a real decision, or a keep-warm pass
+  resident --> evicted: idle, the OS reclaims the pages
+  evicted --> resident: next call pays the fault-in<br/>(2172ms instead of 730ms)
+  resident --> quiet: 9 keep-warm rounds with no real traffic
+  quiet --> resident: a real request arrives, keep-warm restarts
+  note right of quiet
+    Stops pinging so an unused
+    server does not burn a core.
+  end note
+```
+
 - **Keep-warm.** 1.69 GB of weights get evicted when idle: a call after 60s of silence
   took 2172ms against 730ms warm. A tiny pass every 20s holds them resident (882ms after
   the same idle), and it stops itself after a few quiet rounds so an unused server does
@@ -259,6 +314,32 @@ Everything runs on this machine. Specifically:
 So the only outbound traffic in the whole system is fetching the model weights once, plus
 5 HEAD requests at each startup unless `LAYA_MODEL_DIR` is set. Nothing about your play,
 your board, or your machine is sent anywhere.
+
+## The game itself
+
+Independent of the engine, `game.js` is an ordinary Tetris with its own states - the bot
+drives exactly the same primitives a keypress does, so there is no separate path through
+the rules:
+
+```mermaid
+stateDiagram-v2
+  [*] --> ready
+  ready --> playing: start()
+  playing --> paused: P, Esc, or the tab loses focus
+  paused --> playing: P or Resume
+  playing --> over: a piece spawns into occupied cells
+  over --> playing: R, Space, or Play again
+  state playing {
+    [*] --> falling
+    falling --> falling: gravity, move, rotate
+    falling --> grounded: resting on the stack
+    grounded --> falling: slid off a ledge
+    grounded --> locked: 500ms lock delay<br/>(reset up to 15 times by a move)
+    locked --> clearing: full rows present
+    locked --> [*]: no rows cleared
+    clearing --> [*]: rows removed, score added
+  }
+```
 
 ## Playing it
 
