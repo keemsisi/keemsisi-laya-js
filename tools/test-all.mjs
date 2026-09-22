@@ -4,6 +4,19 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
+/**
+ * A suite's verdict, not merely its last line: a build can print warnings after
+ * its summary, and reporting those as the result hides whether it passed - and
+ * drops its assertions from the total.
+ */
+function verdict(out) {
+  const lines = out.trim().split('\n').map((l) => l.trim());
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/\d+ (passed|assertions)/.test(lines[i])) return lines[i];
+  }
+  return lines[lines.length - 1] || '';
+}
+
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const run = (cmd, args, label) => {
   const r = spawnSync(cmd, args, { cwd: root, encoding: 'utf8' });
@@ -44,7 +57,7 @@ let failed = 0;
 for (const [name, file] of suites) {
   const r = spawnSync(process.execPath, [file], { cwd: root, encoding: 'utf8' });
   const out = (r.stdout || '') + (r.stderr || '');
-  const line = (out.trim().split('\n').pop() || '').trim();
+  const line = verdict(out);
   const bad = r.status !== 0;
   if (bad) { failed++; console.log(out); }
   results.push({ name, line, bad });
@@ -60,7 +73,7 @@ for (const [name, script, args] of polyglot) {
   console.log('\nrunning the ' + name + ' sdk...');
   const r = spawnSync(path.join(root, script), args, { cwd: path.dirname(path.join(root, script)), encoding: 'utf8' });
   const out = (r.stdout || '') + (r.stderr || '');
-  const line = (out.trim().split('\n').pop() || '').trim();
+  const line = verdict(out);
   const bad = r.status !== 0;
   if (bad) { failed++; console.log(out); }
   results.push({ name: 'sdk/' + name, line, bad });
