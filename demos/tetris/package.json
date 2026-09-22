@@ -9,5 +9,11 @@
     "install:laya": "cd server && npm install",
     "test": "node tests/all.js"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@laya-js/core": "0.1.0",
+    "@laya-js/server": "0.1.0"
+  }
 }
