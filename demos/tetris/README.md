@@ -64,11 +64,11 @@ The engine is deliberately split at the line Laya's strengths fall on:
 flowchart LR
   subgraph BR["browser"]
     G["game.js: rules, gravity, SRS, scoring"]
-    B1["bot.js: placements() - rotate, slide, drop"]
-    B2["bot.js: evaluate() - Dellacherie + 1-piece lookahead"]
-    B3["bot.js: shortlist(4) + describe()"]
+    B1["bot/search.js: placements() - rotate, slide, drop"]
+    B2["bot/search.js: evaluate() - Dellacherie + 1-piece lookahead"]
+    B3["bot/planner.js: shortlist(4) + describe()"]
     LC["laya-client.js"]
-    B4["bot.js: executor"]
+    B4["bot/executor.js"]
   end
   subgraph SC["node sidecar"]
     D["decide.mjs: state + typed questions"]
@@ -136,7 +136,7 @@ stateDiagram-v2
 A late answer is not wasted: a play style is not piece-specific, so if it arrives after
 the piece locked it is still adopted for the next one. Only a stale *move* is discarded.
 
-**The deterministic half** (`bot.js`) does what a heuristic is good at: it enumerates
+**The deterministic half** (`bot.js` and `bot/`) does what a heuristic is good at: it enumerates
 every placement reachable by *rotate at the top, slide, drop* — the same moves a player
 has — and scores the resulting board with Dellacherie's evaluation function (landing
 height, eroded piece cells, row/column transitions, holes, cumulative wells), plus a
@@ -182,7 +182,7 @@ and that all five still cash a tetris.
 
 ## One decision per piece
 
-When a piece spawns, `bot.js` ranks the placements, takes the best four *materially
+When a piece spawns, `bot/planner.js` ranks the placements, takes the best four *materially
 different* ones and describes each in one line. Those lines are the options Laya chooses
 between, so the choice is over concrete consequences:
 
@@ -362,7 +362,16 @@ laya / fallback / offline / override / timeout counts.
 |---|---|
 | `index.html` | markup, styling, and the glue that wires the three modules together |
 | `game.js` | the game: board, SRS rotation with wall kicks, 7-bag, lock delay, scoring. Exposes `window.Tetris` |
-| `bot.js` | placement enumeration, feature evaluation, strategy profiles, shortlist, executor. Runs in Node too |
+| `bot.js` | the composition root: wires `bot/` together and publishes `window.TetrisBotCore`. Runs in Node too |
+| `bot/profiles.js` | the weight profiles - the five play styles Laya chooses between |
+| `bot/board.js` | reading a board: column heights, holes, wells, transitions |
+| `bot/search.js` | reachable placements, dropping one onto a copy of the board, scoring the result |
+| `bot/planner.js` | ranking, the one-piece lookahead, the shortlist, and the English each candidate is offered with |
+| `bot/snapshot.js` | the request payload - board, queue and shortlist, in the shape `decide.mjs` expects |
+| `bot/requester.js` | the in-flight call: single-flight guard, wait budget, latency estimate, late answers |
+| `bot/arbiter.js` | what an answer is allowed to change: play style, confidence gating, the tally |
+| `bot/executor.js` | turning the chosen placement into move/rotate/hold/hardDrop |
+| `bot/overlay.js` | drawing the planned placement - the only file in `bot/` that touches a canvas |
 | `laya-client.js` | browser → sidecar; every failure resolves to null |
 | `server/server.mjs` | static files, `/health`, `/decide`, `/prompt`; loads Laya lazily |
 | `server/decide.mjs` | board → Laya state + questions → decision. Pure, and the fallback rules |
