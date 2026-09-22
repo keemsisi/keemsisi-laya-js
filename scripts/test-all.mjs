@@ -14,27 +14,27 @@ const run = (cmd, args, label) => {
 };
 
 console.log('building packages...');
-for (const p of ['core', 'server', 'react']) run('npx', ['tsc', '-p', 'packages/' + p], '@laya-js/' + p);
+for (const p of ['core', 'server', 'react']) run('npx', ['tsc', '-p', 'sdk/' + p], '@laya-js/' + p);
 
 console.log('\ntypechecking consumers...');
 // The packages compile themselves, but only a consumer proves the emitted
 // .d.ts files are usable - and the example is bundled by esbuild, which
 // strips types without checking them.
-run('npx', ['tsc', '-p', 'tests/types'], 'type surface (with @ts-expect-error assertions)');
-run('npx', ['tsc', '-p', 'examples/ticket-triage'], 'example app (strict)');
+run('npx', ['tsc', '-p', 'protocol/conformance/typescript-types'], 'type surface (with @ts-expect-error assertions)');
+run('npx', ['tsc', '-p', 'demos/ticketing'], 'example app (strict)');
 
 console.log('\nbundling the example...');
-run(process.execPath, ['examples/ticket-triage/build.mjs'], 'esbuild bundle');
+run(process.execPath, ['demos/ticketing/build.mjs'], 'esbuild bundle');
 
 const suites = [
-  ['core', 'packages/core/test/core.test.mjs'],
-  ['core/client', 'packages/core/test/client.test.mjs'],
-  ['server', 'packages/server/test/server.test.mjs'],
-  ['react', 'packages/react/test/react.test.mjs'],
-  ['app (jsdom)', 'examples/ticket-triage/test/app.test.mjs'],
+  ['core', 'sdk/core/test/core.test.mjs'],
+  ['core/client', 'sdk/core/test/client.test.mjs'],
+  ['server', 'sdk/server/test/server.test.mjs'],
+  ['react', 'sdk/react/test/react.test.mjs'],
+  ['app (jsdom)', 'demos/ticketing/test/app.test.mjs'],
   // Loads the real 1.69 GB checkpoint. Skips itself, loudly, when the
   // bundle is not already cached, so this never starts a download.
-  ['real model', 'packages/server/test/real-model.test.mjs']
+  ['real model', 'sdk/server/test/real-model.test.mjs']
 ];
 
 console.log('\nrunning suites...');

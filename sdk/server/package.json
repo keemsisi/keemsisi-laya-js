@@ -1,14 +1,15 @@
 {
-  "name": "@laya-js/core",
+  "name": "@laya-js/server",
   "version": "0.1.0",
-  "description": "Isomorphic types, question builders, answer readers and context budgeting for the Laya decision model. Zero dependencies.",
+  "description": "Node adapter that turns a Laya checkpoint into an HTTP decision endpoint.",
   "keywords": [
     "laya",
     "decision-model",
-    "classification",
-    "typescript",
-    "isomorphic",
-    "onnx"
+    "node",
+    "express",
+    "nextjs",
+    "onnx",
+    "server"
   ],
   "license": "MIT",
   "author": "Adeshina Lasisi",
@@ -19,7 +20,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/keemsisi/keemsisi-laya-js.git",
-    "directory": "packages/core"
+    "directory": "sdk/server"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -35,13 +36,26 @@
     "README.md",
     "LICENSE"
   ],
-  "sideEffects": false,
   "scripts": {
     "build": "tsc -p .",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build"
   },
+  "dependencies": {
+    "@laya-js/core": "0.1.0"
+  },
+  "optionalDependencies": {
+    "@receptron/laya": "^0.1.2"
+  },
+  "peerDependenciesMeta": {
+    "@receptron/laya": {
+      "optional": true
+    }
+  },
   "publishConfig": {
     "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

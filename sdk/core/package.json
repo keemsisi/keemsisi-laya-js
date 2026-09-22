@@ -1,14 +1,14 @@
 {
-  "name": "@laya-js/react",
+  "name": "@laya-js/core",
   "version": "0.1.0",
-  "description": "React provider, hooks and components for the Laya decision model.",
+  "description": "Isomorphic types, question builders, answer readers and context budgeting for the Laya decision model. Zero dependencies.",
   "keywords": [
     "laya",
-    "react",
-    "hooks",
     "decision-model",
     "classification",
-    "typescript"
+    "typescript",
+    "isomorphic",
+    "onnx"
   ],
   "license": "MIT",
   "author": "Adeshina Lasisi",
@@ -19,7 +19,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/keemsisi/keemsisi-laya-js.git",
-    "directory": "packages/react"
+    "directory": "sdk/core"
   },
   "type": "module",
   "main": "./dist/index.js",
@@ -41,16 +41,7 @@
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build"
   },
-  "dependencies": {
-    "@laya-js/core": "0.1.0"
-  },
-  "peerDependencies": {
-    "react": ">=18"
-  },
   "publishConfig": {
     "access": "public"
-  },
-  "engines": {
-    "node": ">=20"
   }
 }
