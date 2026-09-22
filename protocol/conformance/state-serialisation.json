@@ -1,0 +1,51 @@
+{
+  "note": "Python json.dumps(obj, ensure_ascii=False): ', ' and ': ' separators, insertion order, literal non-ASCII.",
+  "cases": [
+    {
+      "in": "already a string",
+      "out": "already a string"
+    },
+    {
+      "in": {
+        "b": 1,
+        "a": 2
+      },
+      "out": "{\"b\": 1, \"a\": 2}"
+    },
+    {
+      "in": {
+        "s": "é à ü 中文"
+      },
+      "out": "{\"s\": \"é à ü 中文\"}"
+    },
+    {
+      "in": {
+        "n": [
+          1,
+          2.5,
+          null,
+          true,
+          false
+        ]
+      },
+      "out": "{\"n\": [1, 2.5, null, true, false]}"
+    },
+    {
+      "in": {
+        "nested": {
+          "x": {
+            "y": "z"
+          }
+        }
+      },
+      "out": "{\"nested\": {\"x\": {\"y\": \"z\"}}}"
+    },
+    {
+      "in": {
+        "empty": {},
+        "list": []
+      },
+      "out": "{\"empty\": {}, \"list\": []}"
+    }
+  ]
+}
