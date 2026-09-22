@@ -22,23 +22,116 @@ not something a page downloads.
 
 So there is no "React component that runs Laya". What there *is*:
 
+```mermaid
+flowchart LR
+  subgraph B["browser"]
+    UI["your component"]
+    HOOK["useDecision()"]
+    CL["core: createClient()"]
+  end
+  subgraph N["your Node server"]
+    HD["server: handler / fetchHandler"]
+    VA["core: validateState / validateQuestions"]
+    PR["resolve preset"]
+    BU["core: estimateTokenBreakdown + fitToContext"]
+    QU["serialize + maxQueue"]
+    MD["@receptron/laya on ONNX Runtime"]
+  end
+  UI --> HOOK --> CL
+  CL -- "POST /laya/decide" --> HD
+  HD --> VA --> PR --> BU --> QU --> MD
+  MD -- "answers + usage" --> HD
+  HD -- "DecideOk | DecideError" --> CL
+  CL --> HOOK
+  HOOK -- "readAll(): typed readings + gates" --> UI
 ```
-  ┌──────── browser ────────┐        ┌─────────── your node server ───────────┐
-  │  @laya-js/react         │        │  @laya-js/server                       │
-  │   <LayaProvider>        │  POST  │   presets, validation, token budget,   │
-  │   useDecision()         │ ─────▶ │   one-at-a-time inference              │
-  │   <ChoiceBreakdown>     │ ◀───── │            │                           │
-  └─────────────────────────┘        │            ▼  @receptron/laya          │
-              │                      │         the model (1.7 GB)             │
-              └── @laya-js/core ─────┴────────────────────────────────────────┘
-                  types · readers · budgeting · fetch client
-```
+
+`@laya-js/core` sits on both sides: the browser uses its client and readers, the server
+uses its validation and budgeting, and both share its types.
 
 | package | runs where | what it is |
 |---|---|---|
 | `@laya-js/core` | anywhere | Laya's types, question builders, defensive answer readers, context budgeting, and a fetch client that never throws. Zero dependencies. |
 | `@laya-js/react` | browser / SSR | `<LayaProvider>`, `useDecision`, `useDecisionCallback`, and three unstyled components. React 18+. |
 | `@laya-js/server` | Node 20+ | Turns a Laya checkpoint into an HTTP endpoint for `node:http`, Express, Next.js, Hono or Bun. |
+
+## How a decision flows
+
+Every request takes the same path, and every branch off it is a typed error code rather
+than an exception:
+
+```mermaid
+flowchart TD
+  A["decide(request)"] --> B{"state well formed?"}
+  B -- no --> E1["bad_request"]
+  B -- yes --> C{"preset or ad-hoc?"}
+  C -- "ad-hoc while disabled" --> E2["forbidden"]
+  C -- "unknown preset name" --> E1
+  C -- "resolved" --> D["estimateTokenBreakdown"]
+  D --> F{"largest question over budget?"}
+  F -- "yes, no fit configured" --> E3["too_large"]
+  F -- "yes, fit configured" --> G["fitToContext: drop state keys, then shorten options"]
+  G --> H{"still over?"}
+  H -- yes --> E3
+  H -- no --> I["ensureModel()"]
+  F -- no --> I
+  I -- "not installed or still loading" --> E4["unavailable"]
+  I -- "ready" --> J{"another pass already waiting?"}
+  J -- yes --> E4
+  J -- no --> K["serialize: systemOne(state, questions)"]
+  K -- "throws" --> E5["internal"]
+  K -- "answers" --> L["DecideOk: answers, usage, tokens, totalTokens"]
+```
+
+### Why the budget is per question
+
+Laya encodes the **whole state once per question**, so a three-question call is three
+sequences, not one. That is why the 512-token window limits the largest question rather
+than the batch total, and why cost scales with `questions x state size`:
+
+```mermaid
+flowchart LR
+  ST["state (~350 chars)"] --> S1["sequence 1: state + question A"]
+  ST --> S2["sequence 2: state + question B"]
+  ST --> S3["sequence 3: state + question C"]
+  S1 --> T1["241 tokens"]
+  S2 --> T2["241 tokens"]
+  S3 --> T3["241 tokens"]
+  T1 --> SUM["usage.input_tokens = 722 (the sum)"]
+  T2 --> SUM
+  T3 --> SUM
+  T1 --> CAP["context limit applies here, per sequence: 241 of 512"]
+```
+
+Measured directly: token counts came back as 112 / 224 / 336 for one, two and three
+questions over an identical state.
+
+### Keeping a slow answer from overwriting a fresh one
+
+`useDecision` re-asks whenever the serialized input changes. A model that takes ~1s will
+routinely still be working when the input changes again, so ordering is enforced rather
+than hoped for:
+
+```mermaid
+sequenceDiagram
+  participant R as render
+  participant H as useDecision
+  participant C as client
+  participant S as sidecar
+  R->>H: input A
+  H->>H: requestId = 1
+  H->>C: decide(A, signal 1)
+  C->>S: POST /laya/decide
+  R->>H: input B (user typed again)
+  H->>H: requestId = 2, abort signal 1
+  H->>C: decide(B, signal 2)
+  S-->>C: answer for A (late)
+  C-->>H: resolves with code "aborted"
+  H->>H: dropped: requestId mismatch
+  S-->>C: answer for B
+  C-->>H: DecideOk
+  H->>R: readings + gates for B only
+```
 
 ## Quick start
 
