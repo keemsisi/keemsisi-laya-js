@@ -9,6 +9,7 @@
  */
 import { parentPort } from 'node:worker_threads';
 import { loadReceptronLaya } from '@laya-js/server';
+import { CHECKPOINT } from '@laya-js/core';
 
 let laya = null;
 
@@ -18,16 +19,18 @@ parentPort.on('message', async function (msg) {
       // The loader is @laya-js/server's: it owns the dynamic import, the
       // export check and the "you have not installed it" message, which
       // this file used to carry its own copy of.
+      const revision = msg.revision || CHECKPOINT.revision;
       laya = await loadReceptronLaya({
         modelDir: msg.modelDir || undefined,
         cacheDir: msg.cacheDir || undefined,
-        revision: msg.revision || undefined,
+        revision: revision,
         onProgress: function (p) { parentPort.postMessage({ type: 'progress', file: p.file, received: p.received, total: p.total }); }
       });
       parentPort.postMessage({
         type: 'loaded',
         maxLen: laya.config ? laya.config.max_len : null,
-        modelDir: laya.modelDir || null
+        modelDir: laya.modelDir || null,
+        revision: revision
       });
     } catch (err) {
       parentPort.postMessage({ type: 'loadError', error: err && err.message ? err.message : String(err) });

@@ -46,6 +46,7 @@ const engine = {
   state: WANT_LAYA ? 'loading' : 'fallback',   // loading | laya | fallback
   laya: null,
   modelDir: null,
+  revision: null,
   maxLen: null,
   modelName: null,
   reason: WANT_LAYA ? null : 'started without LAYA=1, using deterministic rules',
@@ -98,6 +99,9 @@ async function loadLaya() {
         engine.loadMs = Date.now() - t0;
         engine.maxLen = msg.maxLen;
         engine.modelDir = msg.modelDir || engine.cacheDir;
+        // Reported by the worker, not echoed from the request: health should
+        // say which checkpoint is resident, including when the default applied.
+        engine.revision = msg.revision || null;
         engine.reason = null;
         scheduleWarm();
         console.log('[laya] ready in ' + engine.loadMs + 'ms (context ' + engine.maxLen + ' tokens)');
@@ -132,9 +136,10 @@ async function loadLaya() {
       type: 'load',
       modelDir: process.env.LAYA_MODEL_DIR || null,
       cacheDir: process.env.LAYA_CACHE || null,
-      // Pin to a published commit: the loader size-checks cached files but
-      // never checksums them, so "main" would float under us.
-      revision: process.env.LAYA_REVISION || null
+      // Left undefined on purpose: @laya-js/server defaults it to the
+      // verified checkpoint. Setting it here to null would mean "no pin",
+      // which is how this used to silently fall back to a floating "main".
+      revision: process.env.LAYA_REVISION || undefined
     });
   });
 }
@@ -330,7 +335,7 @@ const server = http.createServer(async function (req, res) {
     return json(res, 200, {
       engine: engine.state,
       model: engine.modelName || (engine.state === 'laya' ? 'convaiinnovations/laya (receptron/laya-onnx)' : null),
-      revision: process.env.LAYA_REVISION || (engine.state === 'laya' ? 'main (unpinned)' : null),
+      revision: engine.revision || null,
       modelDir: engine.modelDir || null,
       contextTokens: engine.maxLen || null,
       reason: engine.reason,

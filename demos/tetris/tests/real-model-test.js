@@ -23,7 +23,17 @@ function ok(name, cond, extra) {
   else { fail++; console.log('  FAIL  ' + name + (extra !== undefined ? '  -> ' + extra : '')); }
 }
 
-const REVISION = process.env.LAYA_REVISION || 'main';
+// The checkpoint the SDK pins to, so a cached bundle is actually found. This
+// used to default to 'main', which is not what anything downloads, so the
+// suite reported "not cached" while the weights sat on disk.
+//
+// Read from protocol/ rather than imported from @laya-js/core: this file is
+// CommonJS and the package is ESM-only. core's own tests assert that
+// CHECKPOINT.revision equals what these vectors record, so this is the same
+// number by a route that require() can take.
+const REVISION = process.env.LAYA_REVISION || JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', '..', '..', 'protocol', 'conformance', 'sequences.json'), 'utf8')
+).revision;
 const cacheRoot = process.env.LAYA_CACHE ||
   path.join(process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache'), 'receptron-laya');
 const bundle = path.join(cacheRoot, 'receptron--laya-onnx', REVISION, 'laya.onnx.data');
