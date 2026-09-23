@@ -5,14 +5,18 @@ A single-player Tetris that can also be played *by* a decision engine built on
 decision model from Convai Innovations.
 
 ```
-npm test                                   # 297 assertions, no model needed
-node server/server.mjs                     # game on :8787 (engine: fallback)
-npm install                                # at the repo root: ~290 MB of onnxruntime binaries
-LAYA=1 LAYA_REVISION=<sha> node server/server.mjs   # the real model (1.69 GB of weights)
+npm test                        # 322 assertions, no model needed
+node server/server.mjs          # game on :8787 (engine: fallback)
+npm install                     # at the repo root: ~290 MB of onnxruntime binaries
+LAYA=1 node server/server.mjs   # the real model (1.69 GB of weights)
 ```
 
+The revision is pinned by default (`CHECKPOINT.revision` in `@laya-js/core`), so
+`LAYA=1` finds the cached bundle instead of re-downloading from a floating `main`.
+Set `LAYA_REVISION` only to run a different checkpoint.
+
 **Verified on the real checkpoint.** `tests/real-model-test.js` loads the actual 1.69 GB
-bundle and plays real Tetris through it - 35 assertions, all passing:
+bundle and plays real Tetris through it - 45 assertions, all passing:
 
 ```
 laya decided 12 of 14 pieces   fallback=0  offline=0  timeouts=0  skipped=0

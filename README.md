@@ -307,8 +307,12 @@ packages are built around not throwing that away.
   entropy` over the whole distribution and answers a different question.
 - **Health never overstates the model.** `model` is the id the checkpoint reported on its
   last answer, so an injected stub cannot inherit a hardcoded name; `modelSource` says
-  what was configured (`receptron/laya-onnx@main (unpinned)`, a local dir, or
-  `injected (custom load)`) and is known before the first answer.
+  what was configured (`receptron/laya-onnx@<sha>`, a local dir, or
+  `injected (custom load)`) and is known before the first answer. The revision
+  defaults to `CHECKPOINT.revision` — the commit every published measurement was taken
+  on — because the loader size-checks cached files without checksumming them, so a
+  floating `main` could change the model under a cache that still looks valid. Asking
+  for a different revision appends `(not the verified checkpoint)`.
 ```mermaid
 flowchart TD
   RAW["raw answer from Laya"] --> TY{"question type"}

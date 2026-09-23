@@ -56,8 +56,9 @@ const laya = createLayaServer({
   allowAdHoc: false,
   // Long tickets get the body trimmed rather than silently truncated.
   fit: { dropStateKeys: ['body'] },
-  // Pin the weights to a published commit: the loader size-checks the cached
-  // files but does not checksum them, so "main" would float.
+  // Omitted unless overridden: @laya-js/server defaults the revision to the
+  // verified checkpoint, because the loader size-checks cached files without
+  // checksumming them and a floating "main" would change the model silently.
   ...(process.env.LAYA_REVISION ? { revision: process.env.LAYA_REVISION } : {}),
   ...(process.env.LAYA_MODEL_DIR ? { modelDir: process.env.LAYA_MODEL_DIR } : {}),
   ...(FAKE ? { load: async () => stubModel(), eager: true } : {}),
