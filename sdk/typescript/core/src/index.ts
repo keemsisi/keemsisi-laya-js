@@ -1,3 +1,4 @@
+export * from './model.js';
 export * from './types.js';
 export * from './questions.js';
 export * from './answers.js';

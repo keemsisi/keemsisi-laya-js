@@ -227,4 +227,47 @@ section('context budgeting');
   ok('dropping an absent key is not an error', keep.overBudget === true);
 }
 
+
+/* ------------------------------------------------------------------ *
+ * The checkpoint pin.
+ *
+ * CHECKPOINT.revision is what loadReceptronLaya defaults to, and every
+ * number this package commits to was measured on that commit. The
+ * conformance vectors in protocol/ record the same revision. If the two
+ * ever disagree, one of them is lying about which model produced the
+ * numbers - so assert they agree rather than trusting a comment.
+ * ------------------------------------------------------------------ */
+section('the pinned checkpoint');
+{
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+
+  const here = dirname(fileURLToPath(import.meta.url));
+  const conformanceDir = join(here, '..', '..', '..', '..', 'protocol', 'conformance');
+
+  ok('the revision is a full 40-character commit sha',
+     /^[0-9a-f]{40}$/.test(L.CHECKPOINT.revision), L.CHECKPOINT.revision);
+  ok('it is not a floating ref', !['main', 'master', 'HEAD'].includes(L.CHECKPOINT.revision));
+  eq('the repo is the ONNX export', L.CHECKPOINT.repo, 'receptron/laya-onnx');
+  ok('the context name is one budget.ts knows',
+     Object.keys(L.CONTEXT_TOKENS).includes(L.CHECKPOINT.context), L.CHECKPOINT.context);
+
+  const vectorFiles = readdirSync(conformanceDir).filter((f) => f.endsWith('.json'));
+  ok('there are conformance vectors to check against', vectorFiles.length > 0, String(vectorFiles.length));
+
+  const disagree = [];
+  let checked = 0;
+  for (const f of vectorFiles) {
+    const doc = JSON.parse(readFileSync(join(conformanceDir, f), 'utf8'));
+    if (typeof doc.revision !== 'string') continue;   // not every vector file records one
+    checked++;
+    if (doc.revision !== L.CHECKPOINT.revision) disagree.push(f + ': ' + doc.revision);
+  }
+  ok('at least one vector file records a revision', checked > 0, String(checked));
+  ok('every recorded revision matches CHECKPOINT (' + checked + ' files)',
+     disagree.length === 0, disagree.join('; '));
+}
+
+
 summary();
