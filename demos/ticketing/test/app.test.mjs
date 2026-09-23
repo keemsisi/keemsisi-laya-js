@@ -8,7 +8,7 @@
  *
  *   node test/app.test.mjs
  */
-import { ok, eq, section, summary } from '../../../scripts/harness.mjs';
+import { ok, eq, section, summary } from '../../../sdk/typescript/test-harness.mjs';
 import { spawn } from 'node:child_process';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import fs from 'node:fs/promises';

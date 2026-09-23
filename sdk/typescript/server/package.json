@@ -20,7 +20,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/keemsisi/keemsisi-laya-js.git",
-    "directory": "packages/server"
+    "directory": "sdk/typescript/server"
   },
   "type": "module",
   "main": "./dist/index.js",

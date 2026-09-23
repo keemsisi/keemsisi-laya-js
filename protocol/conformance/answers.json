@@ -1,0 +1,581 @@
+{
+  "note": "End-to-end vectors. Reproduce these and your port is interchangeable.",
+  "revision": "68f27dfe5a27a54fb2b1fefc432f43f972e90868",
+  "cases": [
+    {
+      "name": "choice-with-descriptions",
+      "state": {
+        "subject": "Duplicate charge",
+        "body": "Billed twice for March."
+      },
+      "questions": {
+        "dept": {
+          "type": "choice",
+          "instructions": "Which team?",
+          "criteria": {
+            "billing": "refunds and invoices",
+            "support": "bugs"
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "dept": {
+            "type": "choice",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.9741,
+              "support": 0.0259
+            },
+            "confidence": 0.8264,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 41,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "choice-from-a-list",
+      "state": "a plain string state",
+      "questions": {
+        "pick": {
+          "type": "choice",
+          "instructions": "Pick one",
+          "criteria": [
+            "alpha",
+            "beta",
+            "gamma"
+          ]
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "pick": {
+            "type": "choice",
+            "choice": "alpha",
+            "probabilities": {
+              "alpha": 0.4421,
+              "beta": 0.307,
+              "gamma": 0.2509
+            },
+            "confidence": 0.0258,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 19,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "choice-with-null-description",
+      "state": {
+        "s": "x"
+      },
+      "questions": {
+        "pick": {
+          "type": "choice",
+          "instructions": "Pick",
+          "criteria": {
+            "a": null,
+            "b": "has a description"
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "pick": {
+            "type": "choice",
+            "choice": "a",
+            "probabilities": {
+              "a": 0.5921,
+              "b": 0.4079
+            },
+            "confidence": 0.0246,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 22,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "score-rubric",
+      "state": {
+        "ticket": "Production is down."
+      },
+      "questions": {
+        "urgency": {
+          "type": "score",
+          "instructions": "How urgent?",
+          "criteria": [
+            "not urgent",
+            "somewhat",
+            "urgent",
+            "critical"
+          ]
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "urgency": {
+            "type": "score",
+            "score": 2.2354,
+            "legend": {
+              "0": "not urgent",
+              "1": "somewhat",
+              "2": "urgent",
+              "3": "critical"
+            },
+            "probabilities": {
+              "0": 0.0215,
+              "1": 0.1268,
+              "2": 0.4463,
+              "3": 0.4053
+            },
+            "confidence": 0.2277,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 40,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "noul-defaults",
+      "state": {
+        "s": "The customer threatens to leave."
+      },
+      "questions": {
+        "churn": {
+          "type": "noul",
+          "instructions": "Likely to cancel?"
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "churn": {
+            "type": "noul",
+            "noul": 0.1086,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 42,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "noul-custom-criteria",
+      "state": {
+        "s": "All good, just a question."
+      },
+      "questions": {
+        "churn": {
+          "type": "noul",
+          "instructions": "Likely to cancel?",
+          "criteria": {
+            "true": "they threaten to leave",
+            "false": "they are asking for help"
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "churn": {
+            "type": "noul",
+            "noul": 0.2147,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 40,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "state-object-key-order-and-unicode",
+      "state": {
+        "zeta": 1,
+        "alpha": "éàü 中文",
+        "nested": {
+          "b": [
+            1,
+            2,
+            {
+              "c": null
+            }
+          ],
+          "a": true
+        }
+      },
+      "questions": {
+        "q": {
+          "type": "choice",
+          "instructions": "Which?",
+          "criteria": {
+            "x": "one",
+            "y": "two"
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "q": {
+            "type": "choice",
+            "choice": "y",
+            "probabilities": {
+              "x": 0.0254,
+              "y": 0.9746
+            },
+            "confidence": 0.8292,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 55,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "literal-mask-token-is-scrubbed",
+      "state": {
+        "s": "contains [MASK] in the state"
+      },
+      "questions": {
+        "q": {
+          "type": "choice",
+          "instructions": "has [MASK] here too",
+          "criteria": {
+            "a": "and [MASK] in an option",
+            "b": "clean"
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "q": {
+            "type": "choice",
+            "choice": "a",
+            "probabilities": {
+              "a": 0.6801,
+              "b": 0.3199
+            },
+            "confidence": 0.0957,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 33,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "many-options-temperature-bucket",
+      "state": {
+        "s": "pick a letter"
+      },
+      "questions": {
+        "q": {
+          "type": "choice",
+          "instructions": "Which letter?",
+          "criteria": {
+            "a": "letter a",
+            "b": "letter b",
+            "c": "letter c",
+            "d": "letter d",
+            "e": "letter e",
+            "f": "letter f",
+            "g": "letter g",
+            "h": "letter h",
+            "i": "letter i",
+            "j": "letter j",
+            "k": "letter k",
+            "l": "letter l",
+            "m": "letter m"
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "q": {
+            "type": "choice",
+            "choice": "a",
+            "probabilities": {
+              "a": 1,
+              "b": 0,
+              "c": 0,
+              "d": 0,
+              "e": 0,
+              "f": 0,
+              "g": 0,
+              "h": 0,
+              "i": 0,
+              "j": 0,
+              "k": 0,
+              "l": 0,
+              "m": 0
+            },
+            "confidence": 1,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 83,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "long-instructions-truncated",
+      "state": {
+        "s": "short"
+      },
+      "questions": {
+        "q": {
+          "type": "choice",
+          "instructions": "why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why why",
+          "criteria": {
+            "a": "one",
+            "b": "two"
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "q": {
+            "type": "choice",
+            "choice": "a",
+            "probabilities": {
+              "a": 0.9814,
+              "b": 0.0186
+            },
+            "confidence": 0.8664,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 202,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "long-options-force-even-shrink",
+      "state": {
+        "s": "short"
+      },
+      "questions": {
+        "q": {
+          "type": "choice",
+          "instructions": "Pick",
+          "criteria": {
+            "o0": "description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 description 0 ",
+            "o1": "description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 description 1 ",
+            "o2": "description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 description 2 ",
+            "o3": "description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 description 3 ",
+            "o4": "description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 description 4 ",
+            "o5": "description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 description 5 ",
+            "o6": "description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 description 6 ",
+            "o7": "description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 description 7 ",
+            "o8": "description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 description 8 ",
+            "o9": "description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 description 9 ",
+            "o10": "description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 description 10 ",
+            "o11": "description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 description 11 "
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "q": {
+            "type": "choice",
+            "choice": "o0",
+            "probabilities": {
+              "o0": 1,
+              "o1": 0,
+              "o2": 0,
+              "o3": 0,
+              "o4": 0,
+              "o5": 0,
+              "o6": 0,
+              "o7": 0,
+              "o8": 0,
+              "o9": 0,
+              "o10": 0,
+              "o11": 0
+            },
+            "confidence": 1,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 182,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "long-state-truncated",
+      "state": {
+        "body": "The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. The customer was billed twice. "
+      },
+      "questions": {
+        "q": {
+          "type": "choice",
+          "instructions": "Which team?",
+          "criteria": {
+            "billing": "refunds",
+            "support": "bugs"
+          }
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "q": {
+            "type": "choice",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.8092,
+              "support": 0.1908
+            },
+            "confidence": 0.2969,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 512,
+          "output_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "batch-of-three",
+      "state": {
+        "subject": "Refund not received",
+        "body": "Cancelled two weeks ago."
+      },
+      "questions": {
+        "dept": {
+          "type": "choice",
+          "instructions": "Which team?",
+          "criteria": {
+            "billing": "refunds",
+            "technical": "bugs",
+            "sales": "pricing"
+          }
+        },
+        "urgency": {
+          "type": "score",
+          "instructions": "How urgent?",
+          "criteria": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "churn": {
+          "type": "noul",
+          "instructions": "Likely to cancel?"
+        }
+      },
+      "expected": {
+        "model": "laya",
+        "answers": {
+          "dept": {
+            "type": "choice",
+            "choice": "billing",
+            "probabilities": {
+              "billing": 0.8878,
+              "technical": 0.0463,
+              "sales": 0.0659
+            },
+            "confidence": 0.6111,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          },
+          "urgency": {
+            "type": "score",
+            "score": 0.9773,
+            "legend": {
+              "0": "low",
+              "1": "medium",
+              "2": "high",
+              "3": "critical"
+            },
+            "probabilities": {
+              "0": 0.3024,
+              "1": 0.5066,
+              "2": 0.1022,
+              "3": 0.0888
+            },
+            "confidence": 0.1674,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          },
+          "churn": {
+            "type": "noul",
+            "noul": 0.8658,
+            "rl_agent": {
+              "act_probability": 1
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 147,
+          "output_tokens": 0
+        }
+      }
+    }
+  ]
+}

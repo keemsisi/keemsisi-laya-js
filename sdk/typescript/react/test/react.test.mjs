@@ -1,4 +1,4 @@
-import { ok, eq, section, summary } from '../../../scripts/harness.mjs';
+import { ok, eq, section, summary } from '../../test-harness.mjs';
 import { setupDom, flush } from './dom.mjs';
 
 setupDom();
