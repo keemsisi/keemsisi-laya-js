@@ -15,12 +15,12 @@
  */
 import { ok, eq, near, section, summary } from '../../test-harness.mjs';
 import { createLayaServer } from '../dist/index.js';
-import { choice, score, noul, readAll, optionsOf } from '@laya-js/core';
+import { choice, score, noul, readAll, optionsOf, CHECKPOINT } from '@laya-js/core';
 import path from 'node:path';
 import os from 'node:os';
 import { stat } from 'node:fs/promises';
 
-const REVISION = process.env.LAYA_REVISION ?? 'main';
+const REVISION = process.env.LAYA_REVISION ?? CHECKPOINT.revision;
 const cacheRoot = process.env.LAYA_CACHE ??
   path.join(process.env.XDG_CACHE_HOME ?? path.join(os.homedir(), '.cache'), 'receptron-laya');
 const bundleDir = process.env.LAYA_MODEL_DIR ??

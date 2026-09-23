@@ -1,3 +1,4 @@
+import { CHECKPOINT } from '@laya-js/core';
 import type { Questions, SystemOneResult } from '@laya-js/core';
 
 /**
@@ -15,19 +16,20 @@ export interface LayaLike {
 }
 
 export interface ModelSource {
-  /** Hugging Face repo holding the ONNX bundle. Default: receptron/laya-onnx. */
+  /** Hugging Face repo holding the ONNX bundle. Default: CHECKPOINT.repo. */
   repo?: string;
   /** Use a local export and never contact Hugging Face. */
   modelDir?: string;
   /** Cache root for the downloaded bundle. Default: $LAYA_CACHE or ~/.cache/receptron-laya. */
   cacheDir?: string;
   /**
-   * Git revision in the ONNX repo.
+   * Git revision in the ONNX repo. Default: CHECKPOINT.revision.
    *
-   * Prefer a commit SHA over the default "main". The loader checks only that
-   * a cached file's byte count matches the remote one - there is no checksum
-   * on the weights - so pinning a revision is what ties the download to a
-   * specific published commit.
+   * The loader checks only that a cached file's byte count matches the
+   * remote one - there is no checksum on the weights - so the revision is
+   * the only thing tying a download to a specific published commit. It
+   * therefore defaults to the pin rather than to "main"; set it explicitly
+   * to move off the checkpoint this SDK was measured on.
    */
   revision?: string;
   /** Checkpoint variant, e.g. "multilingual" for the 1024-token mmBERT build. */
@@ -41,9 +43,10 @@ export interface ModelSource {
 export function describeSource(source: ModelSource, injected: boolean): string {
   if (injected) return 'injected (custom load)';
   if (source.modelDir) return 'local: ' + source.modelDir;
-  const repo = source.repo ?? 'receptron/laya-onnx';
-  const rev = source.revision ?? 'main (unpinned)';
-  return repo + '@' + rev + (source.subfolder ? '/' + source.subfolder : '');
+  const repo = source.repo ?? CHECKPOINT.repo;
+  const rev = source.revision ?? CHECKPOINT.revision;
+  const pinned = rev === CHECKPOINT.revision ? '' : ' (not the verified checkpoint)';
+  return repo + '@' + rev + (source.subfolder ? '/' + source.subfolder : '') + pinned;
 }
 
 /** Loads `@receptron/laya` if it is installed. Throws a readable error if not. */
@@ -63,10 +66,12 @@ export async function loadReceptronLaya(source: ModelSource = {}): Promise<LayaL
     throw new Error('@receptron/laya did not export Laya.load()');
   }
   return Laya.load({
-    repo: source.repo,
+    // Defaulted here, not left to @receptron/laya, whose own default is the
+    // floating "main". A caller who wants that must now ask for it.
+    repo: source.repo ?? CHECKPOINT.repo,
     modelDir: source.modelDir,
     cacheDir: source.cacheDir,
-    revision: source.revision,
+    revision: source.revision ?? CHECKPOINT.revision,
     subfolder: source.subfolder,
     token: source.token,
     onProgress: source.onProgress
