@@ -5,7 +5,7 @@ A single-player Tetris that can also be played *by* a decision engine built on
 decision model from Convai Innovations.
 
 ```
-npm test                        # 322 assertions, no model needed
+npm test                        # 368 assertions, no model needed
 node server/server.mjs          # game on :8787 (engine: fallback)
 npm install                     # at the repo root: ~290 MB of onnxruntime binaries
 LAYA=1 node server/server.mjs   # the real model (1.69 GB of weights)
@@ -377,9 +377,15 @@ laya / fallback / offline / override / timeout counts.
 | `bot/executor.js` | turning the chosen placement into move/rotate/hold/hardDrop |
 | `bot/overlay.js` | drawing the planned placement - the only file in `bot/` that touches a canvas |
 | `laya-client.js` | browser → sidecar; every failure resolves to null |
-| `server/server.mjs` | static files, `/health`, `/decide`, `/prompt`; loads Laya lazily |
+| `server/server.mjs` | the sidecar's composition root: reads the environment, wires the modules below, listens |
+| `server/model.mjs` | hosting the checkpoint on a worker thread, and the facts it reports |
+| `server/scheduler.mjs` | one forward pass at a time; sheds when the queue is full, drops departed callers |
+| `server/keepwarm.mjs` | a periodic cheap pass so the weights stay resident; backs off when idle |
+| `server/pipeline.mjs` | snapshot → decision: when to ask the model, when to answer from the rules |
+| `server/routes.mjs` | the HTTP surface — `/health`, `/decide`, `/prompt`, static fallback |
+| `server/http.mjs` | CORS, JSON replies, a size-capped body reader, static file serving |
 | `server/decide.mjs` | board → Laya state + questions → decision. Pure, and the fallback rules |
-| `tests/*-test.js` | `logic` (game rules), `bot` (search, evaluation, executor), `decide` (prompt, parsing, HTTP), `ui` (the page glue against the markup), `e2e` (all of it against a live sidecar) |
+| `tests/*-test.js` | `logic` (game rules), `bot` (search, evaluation, executor), `decide` (prompt, parsing, HTTP), `sidecar` (scheduling, shedding, keep-warm and the decision pipeline against a fake model), `ui` (the page glue against the markup), `e2e` (all of it against a live sidecar) |
 
 ## How well does it actually play?
 
