@@ -4,7 +4,7 @@ const path = require('node:path');
 
 // 'real-model' loads the actual 1.69 GB checkpoint and skips itself, loudly,
 // when the bundle is not cached - so this never triggers a download.
-const suites = ['logic', 'bot', 'decide', 'ui', 'e2e', 'real-model'];
+const suites = ['logic', 'bot', 'decide', 'sidecar', 'ui', 'e2e', 'real-model'];
 const results = [];
 let failed = 0;
 
